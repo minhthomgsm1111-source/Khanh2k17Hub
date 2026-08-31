@@ -1,0 +1,279 @@
+--[[
+    Script Name: Ultimate Lag Fixer & Menu GUI (With Confirmation Dialog)
+    Compatible with: All executors
+]]
+
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Prevent duplicate UI
+if CoreGui:FindFirstChild("UltimateLagFixerGUI") then
+    CoreGui.UltimateLagFixerGUI:Destroy()
+end
+
+-- Create ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UltimateLagFixerGUI"
+ScreenGui.Parent = CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 260, 0, 250)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Title.BorderSizePixel = 0
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Font = Enum.Font.SourceSansBold
+Title.Text = "OPTIMIZE MENU (LAG FIX)"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = Title
+
+-- Confirmation Dialog Frame (ẩn mặc định)
+local ConfirmFrame = Instance.new("Frame")
+ConfirmFrame.Name = "ConfirmFrame"
+ConfirmFrame.Parent = MainFrame
+ConfirmFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ConfirmFrame.BackgroundTransparency = 0.1
+ConfirmFrame.Size = UDim2.new(1, 0, 1, 0)
+ConfirmFrame.Visible = false
+ConfirmFrame.ZIndex = 5
+
+local ConfirmCorner = Instance.new("UICorner")
+ConfirmCorner.CornerRadius = UDim.new(0, 8)
+ConfirmCorner.Parent = ConfirmFrame
+
+local ConfirmText = Instance.new("TextLabel")
+ConfirmText.Parent = ConfirmFrame
+ConfirmText.BackgroundTransparency = 1
+ConfirmText.Position = UDim2.new(0, 0, 0.2, 0)
+ConfirmText.Size = UDim2.new(1, 0, 0, 50)
+ConfirmText.Font = Enum.Font.SourceSansBold
+ConfirmText.Text = "Bạn có chắc muốn xoá GUI?"
+ConfirmText.TextColor3 = Color3.fromRGB(255, 255, 255)
+ConfirmText.TextSize = 16
+ConfirmText.ZIndex = 6
+
+-- Nút 1: Giữ lại
+local KeepBtn = Instance.new("TextButton")
+KeepBtn.Parent = ConfirmFrame
+KeepBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+KeepBtn.Position = UDim2.new(0.1, 0, 0.55, 0)
+KeepBtn.Size = UDim2.new(0, 100, 0, 40)
+KeepBtn.Font = Enum.Font.SourceSansBold
+KeepBtn.Text = "Giữ lại"
+KeepBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeepBtn.TextSize = 14
+KeepBtn.ZIndex = 6
+
+local KeepCorner = Instance.new("UICorner")
+KeepCorner.CornerRadius = UDim.new(0, 6)
+KeepCorner.Parent = KeepBtn
+
+-- Nút 2: Xoá
+local DeleteBtn = Instance.new("TextButton")
+DeleteBtn.Parent = ConfirmFrame
+DeleteBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+DeleteBtn.Position = UDim2.new(0.54, 0, 0.55, 0)
+DeleteBtn.Size = UDim2.new(0, 100, 0, 40)
+DeleteBtn.Font = Enum.Font.SourceSansBold
+DeleteBtn.Text = "Xoá"
+DeleteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DeleteBtn.TextSize = 14
+DeleteBtn.ZIndex = 6
+
+local DeleteCorner = Instance.new("UICorner")
+DeleteCorner.CornerRadius = UDim.new(0, 6)
+DeleteCorner.Parent = DeleteBtn
+
+-- Xử lý sự kiện xác nhận
+KeepBtn.MouseButton1Click:Connect(function()
+    ConfirmFrame.Visible = false
+end)
+
+DeleteBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- Close Button (X) trên góc phải thanh Title
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = Title
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.Position = UDim2.new(1, -35, 0.5, -12)
+CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 14
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 4)
+CloseCorner.Parent = CloseBtn
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ConfirmFrame.Visible = true
+end)
+
+-- Toggle Button (Logo UID: 1000014847)
+local ToggleBtn = Instance.new("ImageButton")
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Parent = ScreenGui
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleBtn.Position = UDim2.new(0, 10, 0.5, -30)
+ToggleBtn.Size = UDim2.new(0, 60, 0, 60)
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+ToggleBtn.Image = "rbxassetid://1000014847"
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(1, 0)
+ToggleCorner.Parent = ToggleBtn
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- --- FIX LAG LOGIC ---
+
+local v1Active = false
+local v2Active = false
+local v2Connection = nil
+
+-- Apply V1 Optimizations
+local function applyV1()
+    pcall(function()
+        Lighting.GlobalShadows = false
+        Lighting.Brightness = 2
+        for _, v in pairs(Lighting:GetChildren()) do
+            if v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("PostEffect") then
+                v.Enabled = false
+            end
+        end
+    end)
+end
+
+-- Deep optimization for a single character (V2)
+local function optimizeCharacter(char)
+    if not char then return end
+    pcall(function()
+        for _, v in pairs(char:GetChildren()) do
+            if v:IsA("Accessory") or v:IsA("Clothing") or v:IsA("ShirtGraphic") or v:IsA("CharacterMesh") then
+                v:Destroy()
+            elseif v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+                v.Reflectance = 0
+            end
+        end
+
+        local head = char:FindFirstChild("Head")
+        if head then
+            for _, child in pairs(head:GetChildren()) do
+                if child:IsA("SpecialMesh") then
+                    child:Destroy()
+                end
+            end
+        end
+
+        local animator = char:FindFirstChildOfClass("Humanoid") and char.Humanoid:FindFirstChildOfClass("Animator")
+        if animator then
+            for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+                track:Stop()
+            end
+        end
+    end)
+end
+
+-- Start V2 Scanner
+local function startV2Scanner()
+    if v2Connection then v2Connection:Disconnect() end
+    
+    v2Connection = RunService.Stepped:Connect(function()
+        if not v2Active then return end
+        applyV1()
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player.Character then
+                optimizeCharacter(player.Character)
+            end
+        end
+    end)
+end
+
+-- V1 Button
+local V1Button = Instance.new("TextButton")
+V1Button.Parent = MainFrame
+V1Button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+V1Button.Position = UDim2.new(0.1, 0, 0.25, 0)
+V1Button.Size = UDim2.new(0, 208, 0, 45)
+V1Button.Font = Enum.Font.SourceSansBold
+V1Button.Text = "Fix Lag V1: OFF"
+V1Button.TextColor3 = Color3.fromRGB(255, 100, 100)
+V1Button.TextSize = 14
+
+local V1Corner = Instance.new("UICorner")
+V1Corner.CornerRadius = UDim.new(0, 6)
+V1Corner.Parent = V1Button
+
+V1Button.MouseButton1Click:Connect(function()
+    v1Active = not v1Active
+    if v1Active then
+        V1Button.Text = "Fix Lag V1: ON"
+        V1Button.TextColor3 = Color3.fromRGB(100, 255, 100)
+        applyV1()
+    else
+        V1Button.Text = "Fix Lag V1: OFF"
+        V1Button.TextColor3 = Color3.fromRGB(255, 100, 100)
+        Lighting.GlobalShadows = true
+    end
+end)
+
+-- V2 Button
+local V2Button = Instance.new("TextButton")
+V2Button.Parent = MainFrame
+V2Button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+V2Button.Position = UDim2.new(0.1, 0, 0.55, 0)
+V2Button.Size = UDim2.new(0, 208, 0, 45)
+V2Button.Font = Enum.Font.SourceSansBold
+V2Button.Text = "Fix Lag V2: OFF"
+V2Button.TextColor3 = Color3.fromRGB(255, 100, 100)
+V2Button.TextSize = 14
+
+local V2Corner = Instance.new("UICorner")
+V2Corner.CornerRadius = UDim.new(0, 6)
+V2Corner.Parent = V2Button
+
+V2Button.MouseButton1Click:Connect(function()
+    v2Active = not v2Active
+    if v2Active then
+        V2Button.Text = "Fix Lag V2: ON"
+        V2Button.TextColor3 = Color3.fromRGB(100, 255, 100)
+        startV2Scanner()
+    else
+        V2Button.Text = "Fix Lag V2: OFF"
+        V2Button.TextColor3 = Color3.fromRGB(255, 100, 100)
+        if v2Connection then
+            v2Connection:Disconnect()
+            v2Connection = nil
+        end
+    end
+end)
