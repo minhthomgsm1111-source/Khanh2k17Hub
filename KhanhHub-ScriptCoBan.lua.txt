@@ -1,0 +1,768 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
+
+local localPlayer = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+-- Tránh tạo nhiều UI trùng lặp
+if CoreGui:FindFirstChild("DeltaCustomHub") then
+    CoreGui.DeltaCustomHub:Destroy()
+end
+
+-- Tạo ScreenGui chính
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DeltaCustomHub"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = CoreGui
+
+-- Nút thu phóng/mở ẩn Menu (Hình tròn trong suốt, tên KH)
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleMenuBtn"
+toggleBtn.Size = UDim2.new(0, 50, 0, 50)
+toggleBtn.Position = UDim2.new(0, 20, 0.3, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+toggleBtn.BackgroundTransparency = 0.6
+toggleBtn.Text = "KH"
+toggleBtn.TextColor3 = Color3.fromRGB(0, 162, 255)
+toggleBtn.TextSize = 14
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Active = true
+toggleBtn.Draggable = true
+toggleBtn.Parent = screenGui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(1, 0)
+toggleCorner.Parent = toggleBtn
+
+local toggleStroke = Instance.new("UIStroke")
+toggleStroke.Color = Color3.fromRGB(0, 162, 255)
+toggleStroke.Thickness = 2
+toggleStroke.Transparency = 0.4
+toggleStroke.Parent = toggleBtn
+
+-- Khung Menu Chính
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 460, 0, 380)
+mainFrame.Position = UDim2.new(0.5, -230, 0.5, -190)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainFrame.BackgroundTransparency = 0.3
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Visible = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(80, 80, 80)
+mainStroke.Thickness = 1.5
+mainStroke.Transparency = 0.4
+mainStroke.Parent = mainFrame
+
+-- Thanh tiêu đề
+local topBar = Instance.new("Frame")
+topBar.Size = UDim2.new(1, 0, 0, 40)
+topBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+topBar.BackgroundTransparency = 0.4
+topBar.BorderSizePixel = 0
+topBar.Parent = mainFrame
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 12)
+topCorner.Parent = topBar
+
+local coverFix = Instance.new("Frame")
+coverFix.Size = UDim2.new(1, 0, 0, 10)
+coverFix.Position = UDim2.new(0, 0, 1, -10)
+coverFix.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+coverFix.BackgroundTransparency = 0.4
+coverFix.BorderSizePixel = 0
+coverFix.Parent = topBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -15, 1, 0)
+titleLabel.Position = UDim2.new(0, 15, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Khanh 2k17 Hub"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 13
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = topBar
+
+-- Bấm nút KH ngoài màn hình để ẩn/hiện menu chính
+toggleBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- ==================== THANH CHUYỂN TAB (TAB BAR) ====================
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1, -10, 0, 32)
+tabBar.Position = UDim2.new(0, 5, 0, 45)
+tabBar.BackgroundTransparency = 1
+tabBar.Parent = mainFrame
+
+local tabLayout = Instance.new("UIListLayout")
+tabLayout.FillDirection = Enum.FillDirection.Horizontal
+tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tabLayout.Padding = UDim.new(0, 5)
+tabLayout.Parent = tabBar
+
+-- Khung chứa các trang nội dung tương ứng với các Tab
+local pagesContainer = Instance.new("Frame")
+pagesContainer.Size = UDim2.new(1, -10, 1, -85)
+pagesContainer.Position = UDim2.new(0, 5, 0, 80)
+pagesContainer.BackgroundTransparency = 1
+pagesContainer.Parent = mainFrame
+
+-- Hàm tạo Trang (Tab Content)
+local function createTabPage()
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.ScrollBarThickness = 6
+    page.Visible = false
+    page.Parent = pagesContainer
+
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Padding = UDim.new(0, 6)
+    listLayout.Parent = page
+
+    listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+    end)
+
+    return page
+end
+
+-- Tạo 2 Tab: [1] Tab chính, [2] Discord
+local featuresPage = createTabPage()
+local discordPage = createTabPage()
+
+-- Hàm tạo nút chuyển Tab trên TabBar
+local function createTabButton(name, targetPage)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.5, -3, 1, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    btn.BackgroundTransparency = 0.5
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamBold
+    btn.Parent = tabBar
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+
+    btn.MouseButton1Click:Connect(function()
+        featuresPage.Visible = false
+        discordPage.Visible = false
+        
+        for _, child in pairs(tabBar:GetChildren()) do
+            if child:IsA("TextButton") then
+                child.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                child.BackgroundTransparency = 0.5
+                child.TextColor3 = Color3.fromRGB(180, 180, 180)
+            end
+        end
+        
+        targetPage.Visible = true
+        btn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+        btn.BackgroundTransparency = 0.2
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end)
+
+    return btn
+end
+
+local btnFeaturesTab = createTabButton("Tab chính", featuresPage)
+local btnDiscordTab = createTabButton("Discord", discordPage)
+
+featuresPage.Visible = true
+btnFeaturesTab.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+btnFeaturesTab.BackgroundTransparency = 0.2
+btnFeaturesTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- ==================== NỘI DUNG TAB DISCORD ====================
+local dcCard = Instance.new("Frame")
+dcCard.Size = UDim2.new(1, -10, 0, 120)
+dcCard.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+dcCard.BackgroundTransparency = 0.4
+dcCard.Parent = discordPage
+
+local dcCorner = Instance.new("UICorner")
+dcCorner.CornerRadius = UDim.new(0, 8)
+dcCorner.Parent = dcCard
+
+local dcTitle = Instance.new("TextLabel")
+dcTitle.Size = UDim2.new(1, -20, 0, 30)
+dcTitle.Position = UDim2.new(0, 10, 0, 10)
+dcTitle.BackgroundTransparency = 1
+dcTitle.Text = "Discord"
+dcTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+dcTitle.TextSize = 14
+dcTitle.Font = Enum.Font.GothamBold
+dcTitle.TextXAlignment = Enum.TextXAlignment.Left
+dcTitle.Parent = dcCard
+
+local dcDesc = Instance.new("TextLabel")
+dcDesc.Size = UDim2.new(1, -20, 0, 25)
+dcDesc.Position = UDim2.new(0, 10, 0, 38)
+dcDesc.BackgroundTransparency = 1
+dcDesc.Text = "Bấm nút bên dưới để sao chép link discord"
+dcDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+dcDesc.TextSize = 12
+dcDesc.Font = Enum.Font.Gotham
+dcDesc.TextXAlignment = Enum.TextXAlignment.Left
+dcDesc.Parent = dcCard
+
+local copyDiscordBtn = Instance.new("TextButton")
+copyDiscordBtn.Size = UDim2.new(1, -20, 0, 38)
+copyDiscordBtn.Position = UDim2.new(0, 10, 0, 70)
+copyDiscordBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+copyDiscordBtn.BackgroundTransparency = 0.1
+copyDiscordBtn.Text = "Sao chép Link Discord"
+copyDiscordBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+copyDiscordBtn.TextSize = 13
+copyDiscordBtn.Font = Enum.Font.GothamBold
+copyDiscordBtn.Parent = dcCard
+
+local cdbCorner = Instance.new("UICorner")
+cdbCorner.CornerRadius = UDim.new(0, 6)
+cdbCorner.Parent = copyDiscordBtn
+
+copyDiscordBtn.MouseButton1Click:Connect(function()
+    local discordLink = "https://discord.gg/4uS2CbC6d"
+    if setclipboard then
+        setclipboard(discordLink)
+        StarterGui:SetCore("SendNotification", {
+            Title = "Thành công!",
+            Text = "Đã copy link discord!",
+            Duration = 5
+        })
+    else
+        warn("Executor không hỗ trợ hàm setclipboard!")
+    end
+end)
+
+-- ==================== NỘI DUNG TAB TÍNH NĂNG ====================
+
+local function createFeatureToggle(parentTab, name, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 38)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    btn.BackgroundTransparency = 0.5
+    btn.Text = "  " .. name .. ": [ OFF ]"
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.Parent = parentTab
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+
+    local active = false
+    btn.MouseButton1Click:Connect(function()
+        active = not active
+        if active then
+            btn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
+            btn.BackgroundTransparency = 0.3
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.Text = "  " .. name .. ": [ ON ]"
+        else
+            btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            btn.BackgroundTransparency = 0.5
+            btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            btn.Text = "  " .. name .. ": [ OFF ]"
+        end
+        pcall(function() callback(active) end)
+    end)
+end
+
+local function createActionButton(parentTab, name, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 38)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    btn.BackgroundTransparency = 0.5
+    btn.Text = "  [>] " .. name
+    btn.TextColor3 = Color3.fromRGB(0, 162, 255)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.Parent = parentTab
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+
+    btn.MouseButton1Click:Connect(function()
+        pcall(function() callback() end)
+    end)
+end
+
+local walkSpeedConn, jumpPowerConn, noclipConn, infJumpConn, espConn, aimConn, afkConn
+
+-- 1. ESP
+createFeatureToggle(featuresPage, "ESP", function(state)
+    if state then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= localPlayer and p.Character and not p.Character:FindFirstChild("DeltaESP") then
+                local hl = Instance.new("Highlight")
+                hl.Name = "DeltaESP"
+                hl.FillColor = Color3.fromRGB(255, 0, 0)
+                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                hl.Parent = p.Character
+            end
+        end
+        espConn = Players.PlayerAdded:Connect(function(p)
+            p.CharacterAdded:Connect(function(char)
+                task.wait(1)
+                local hl = Instance.new("Highlight")
+                hl.Name = "DeltaESP"
+                hl.FillColor = Color3.fromRGB(255, 0, 0)
+                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                hl.Parent = char
+            end)
+        end)
+    else
+        if espConn then espConn:Disconnect() end
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("DeltaESP") then
+                p.Character.DeltaESP:Destroy()
+            end
+        end
+    end
+end)
+
+-- 2. Aim đầu
+createFeatureToggle(featuresPage, "Aim đầu", function(state)
+    if state then
+        aimConn = RunService.RenderStepped:Connect(function()
+            local closestPlayer = nil
+            local shortestDistance = math.huge
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= localPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                    local headPos = p.Character.Head.Position
+                    local screenPos, onScreen = camera:WorldToViewportPoint(headPos)
+                    if onScreen then
+                        local mousePos = UserInputService:GetMouseLocation()
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                        if dist < shortestDistance then
+                            shortestDistance = dist
+                            closestPlayer = p
+                        end
+                    end
+                end
+            end
+            if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("Head") then
+                camera.CFrame = CFrame.new(camera.CFrame.Position, closestPlayer.Character.Head.Position)
+            end
+        end)
+    else
+        if aimConn then aimConn:Disconnect() end
+    end
+end)
+
+-- 3. Nhảy vô hạn
+createFeatureToggle(featuresPage, "Nhảy vô hạn", function(state)
+    if state then
+        infJumpConn = UserInputService.JumpRequest:Connect(function()
+            local char = localPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    else
+        if infJumpConn then infJumpConn:Disconnect() end
+    end
+end)
+
+-- 4. Noclip
+createFeatureToggle(featuresPage, "Noclip", function(state)
+    if state then
+        noclipConn = RunService.Stepped:Connect(function()
+            local char = localPlayer.Character
+            if char then
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        if noclipConn then noclipConn:Disconnect() end
+    end
+end)
+
+-- 5. Fly
+local flyingActive = false
+createFeatureToggle(featuresPage, "Fly", function(state)
+    flyingActive = state
+    local char = localPlayer.Character
+    if state then
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            task.spawn(function()
+                local rootPart = char.HumanoidRootPart
+                if rootPart:FindFirstChild("DeltaFlyVel") then
+                    rootPart.DeltaFlyVel:Destroy()
+                end
+                
+                local bv = Instance.new("BodyVelocity")
+                bv.Name = "DeltaFlyVel"
+                bv.Parent = rootPart
+                bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                
+                while flyingActive and char and char:FindFirstChild("HumanoidRootPart") do
+                    bv.Velocity = camera.CFrame.LookVector * 50
+                    task.wait()
+                end
+                bv:Destroy()
+            end)
+        end
+    else
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local bv = char.HumanoidRootPart:FindFirstChild("DeltaFlyVel")
+            if bv then bv:Destroy() end
+        end
+    end
+end)
+
+-- 6. WalkSpeed
+local speedContainer = Instance.new("Frame")
+speedContainer.Size = UDim2.new(1, -10, 0, 75)
+speedContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+speedContainer.BackgroundTransparency = 0.5
+speedContainer.Parent = featuresPage
+
+local scCorner = Instance.new("UICorner")
+scCorner.CornerRadius = UDim.new(0, 6)
+scCorner.Parent = speedContainer
+
+local speedTitle = Instance.new("TextLabel")
+speedTitle.Size = UDim2.new(1, -10, 0, 22)
+speedTitle.Position = UDim2.new(0, 5, 0, 2)
+speedTitle.BackgroundTransparency = 1
+speedTitle.Text = "Tốc độ chạy (WalkSpeed): 16"
+speedTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedTitle.TextSize = 12
+speedTitle.Font = Enum.Font.GothamBold
+speedTitle.TextXAlignment = Enum.TextXAlignment.Left
+speedTitle.Parent = speedContainer
+
+local speedTextBox = Instance.new("TextBox")
+speedTextBox.Size = UDim2.new(0.65, 0, 0, 35)
+speedTextBox.Position = UDim2.new(0, 5, 0, 32)
+speedTextBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+speedTextBox.BackgroundTransparency = 0.4
+speedTextBox.PlaceholderText = "Nhập tốc độ..."
+speedTextBox.Text = ""
+speedTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedTextBox.TextSize = 12
+speedTextBox.Font = Enum.Font.Gotham
+speedTextBox.Parent = speedContainer
+
+local stCorner = Instance.new("UICorner")
+stCorner.CornerRadius = UDim.new(0, 4)
+stCorner.Parent = speedTextBox
+
+local speedSetBtn = Instance.new("TextButton")
+speedSetBtn.Size = UDim2.new(0.32, 0, 0, 35)
+speedSetBtn.Position = UDim2.new(0.67, 0, 0, 32)
+speedSetBtn.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+speedSetBtn.BackgroundTransparency = 0.2
+speedSetBtn.Text = "Lưu / Đặt"
+speedSetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedSetBtn.TextSize = 12
+speedSetBtn.Font = Enum.Font.GothamBold
+speedSetBtn.Parent = speedContainer
+
+local ssCorner = Instance.new("UICorner")
+ssCorner.CornerRadius = UDim.new(0, 4)
+ssCorner.Parent = speedSetBtn
+
+speedSetBtn.MouseButton1Click:Connect(function()
+    local val = tonumber(speedTextBox.Text)
+    if val then
+        speedTitle.Text = "Tốc độ chạy (WalkSpeed): " .. tostring(val)
+        if walkSpeedConn then walkSpeedConn:Disconnect() end
+        walkSpeedConn = RunService.RenderStepped:Connect(function()
+            local char = localPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.WalkSpeed = val
+            end
+        end)
+    end
+end)
+
+-- 7. JumpPower
+local jumpBoxContainer = Instance.new("Frame")
+jumpBoxContainer.Size = UDim2.new(1, -10, 0, 45)
+jumpBoxContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+jumpBoxContainer.BackgroundTransparency = 0.5
+jumpBoxContainer.Parent = featuresPage
+
+local jbCorner = Instance.new("UICorner")
+jbCorner.CornerRadius = UDim.new(0, 6)
+jbCorner.Parent = jumpBoxContainer
+
+local jumpTextBox = Instance.new("TextBox")
+jumpTextBox.Size = UDim2.new(0.65, 0, 1, 0)
+jumpTextBox.Position = UDim2.new(0, 5, 0, 0)
+jumpTextBox.BackgroundTransparency = 1
+jumpTextBox.PlaceholderText = "Nhập độ cao nhảy..."
+jumpTextBox.Text = ""
+jumpTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+jumpTextBox.TextSize = 12
+jumpTextBox.Font = Enum.Font.Gotham
+jumpTextBox.Parent = jumpBoxContainer
+
+local jumpSetBtn = Instance.new("TextButton")
+jumpSetBtn.Size = UDim2.new(0.32, 0, 0.8, 0)
+jumpSetBtn.Position = UDim2.new(0.67, 0, 0.1, 0)
+jumpSetBtn.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+jumpSetBtn.BackgroundTransparency = 0.2
+jumpSetBtn.Text = "Đặt"
+jumpSetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+jumpSetBtn.TextSize = 12
+jumpSetBtn.Font = Enum.Font.GothamBold
+jumpSetBtn.Parent = jumpBoxContainer
+
+local jsCorner = Instance.new("UICorner")
+jsCorner.CornerRadius = UDim.new(0, 4)
+jsCorner.Parent = jumpSetBtn
+
+jumpSetBtn.MouseButton1Click:Connect(function()
+    local val = tonumber(jumpTextBox.Text)
+    if val then
+        if jumpPowerConn then jumpPowerConn:Disconnect() end
+        jumpPowerConn = RunService.RenderStepped:Connect(function()
+            local char = localPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.UseJumpPower = true
+                char.Humanoid.JumpPower = val
+            end
+        end)
+    end
+end)
+
+-- 8. Tàng hình
+createFeatureToggle(featuresPage, "Tàng hình", function(state)
+    local char = localPlayer.Character
+    if char then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.Transparency = state and 1 or 0
+            elseif part:IsA("Decal") then
+                part.Transparency = state and 1 or 0
+            end
+        end
+    end
+end)
+
+-- 9. Teleport theo tên
+local tpBoxContainer = Instance.new("Frame")
+tpBoxContainer.Size = UDim2.new(1, -10, 0, 45)
+tpBoxContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+tpBoxContainer.BackgroundTransparency = 0.5
+tpBoxContainer.Parent = featuresPage
+
+local tpBoxCorner = Instance.new("UICorner")
+tpBoxCorner.CornerRadius = UDim.new(0, 6)
+tpBoxCorner.Parent = tpBoxContainer
+
+local tpTextBox = Instance.new("TextBox")
+tpTextBox.Size = UDim2.new(0.65, 0, 1, 0)
+tpTextBox.Position = UDim2.new(0, 5, 0, 0)
+tpTextBox.BackgroundTransparency = 1
+tpTextBox.PlaceholderText = "Nhập tên người chơi..."
+tpTextBox.Text = ""
+tpTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpTextBox.TextSize = 12
+tpTextBox.Font = Enum.Font.Gotham
+tpTextBox.Parent = tpBoxContainer
+
+local tpButton = Instance.new("TextButton")
+tpButton.Size = UDim2.new(0.32, 0, 0.8, 0)
+tpButton.Position = UDim2.new(0.67, 0, 0.1, 0)
+tpButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+tpButton.BackgroundTransparency = 0.2
+tpButton.Text = "Teleport"
+tpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpButton.TextSize = 12
+tpButton.Font = Enum.Font.GothamBold
+tpButton.Parent = tpBoxContainer
+
+local tpBtnCorner = Instance.new("UICorner")
+tpBtnCorner.CornerRadius = UDim.new(0, 4)
+tpBtnCorner.Parent = tpButton
+
+tpButton.MouseButton1Click:Connect(function()
+    local targetName = tpTextBox.Text:lower()
+    if targetName == "" then return end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= localPlayer and (p.Name:lower():sub(1, #targetName) == targetName or p.DisplayName:lower():sub(1, #targetName) == targetName) then
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                break
+            end
+        end
+    end
+end)
+
+-- 10. Up 15m
+createActionButton(featuresPage, "Up 15m", function()
+    local char = localPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame + Vector3.new(0, 15, 0)
+    end
+end)
+
+-- 11. Down 10m
+createActionButton(featuresPage, "Down 10m", function()
+    local char = localPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame - Vector3.new(0, 10, 0)
+    end
+end)
+
+-- 12. Sáng màn hình
+createFeatureToggle(featuresPage, "Sáng Màn hình", function(state)
+    if state then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.GlobalShadows = false
+        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+    else
+        Lighting.Brightness = 1
+        Lighting.GlobalShadows = true
+        Lighting.OutdoorAmbient = Color3.fromRGB(127, 127, 127)
+    end
+end)
+
+-- 13. Anti AFK
+createFeatureToggle(featuresPage, "Anti AFK", function(state)
+    if state then
+        local vu = game:GetService("VirtualUser")
+        afkConn = localPlayer.Idled:Connect(function()
+            vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            task.wait(1)
+            vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        end)
+    else
+        if afkConn then afkConn:Disconnect() end
+    end
+end)
+
+-- 14. Đổi Server Khác
+createActionButton(featuresPage, "Đổi Server Khác", function()
+    local HttpService = game:GetService("HttpService")
+    local TeleportService = game:GetService("TeleportService")
+    local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+    for _, s in pairs(servers.data) do
+        if s.playing < s.maxPlayers and s.id ~= game.JobId then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, localPlayer)
+            break
+        end
+    end
+end)
+
+-- 15. Fix Lag
+local fixLagActive = false
+createFeatureToggle(featuresPage, "Fix Lag", function(state)
+    fixLagActive = state
+    if state then
+        task.spawn(function()
+            while fixLagActive do
+                for _, p in pairs(Players:GetPlayers()) do
+                    if p.Character then
+                        for _, v in pairs(p.Character:GetChildren()) do
+                            if v:IsA("Accessory") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("Clothing") or v:IsA("CharacterMesh") then
+                                v:Destroy()
+                            end
+                        end
+                    end
+                end
+
+                for _, v in pairs(Lighting:GetChildren()) do
+                    if v:IsA("PostEffect") or v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds") or v:IsA("PointLight") or v:IsA("SurfaceLight") or v:IsA("SpotLight") then
+                        v:Destroy()
+                    end
+                end
+
+                for _, v in pairs(Workspace:GetDescendants()) do
+                    if v:IsA("BasePart") then
+                        v.Material = Enum.Material.SmoothPlastic
+                        v.Reflectance = 0
+                        v.CastShadow = false
+                    elseif v:IsA("Decal") or v:IsA("Texture") or v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then
+                        v:Destroy()
+                    end
+                end
+
+                task.wait(1)
+            end
+        end)
+
+        if not screenGui:FindFirstChild("FPSCounterLabel") then
+            local fpsLabel = Instance.new("TextLabel")
+            fpsLabel.Name = "FPSCounterLabel"
+            fpsLabel.Size = UDim2.new(0, 120, 0, 30)
+            fpsLabel.Position = UDim2.new(0, 20, 0, 100)
+            fpsLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+            fpsLabel.BackgroundTransparency = 0.5
+            fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+            fpsLabel.TextSize = 14
+            fpsLabel.Font = Enum.Font.GothamBold
+            fpsLabel.Text = "FPS: 60"
+            fpsLabel.Active = true
+            fpsLabel.Draggable = true
+            fpsLabel.Parent = screenGui
+
+            local fpsCorner = Instance.new("UICorner")
+            fpsCorner.CornerRadius = UDim.new(0, 6)
+            fpsCorner.Parent = fpsLabel
+
+            local fpsStroke = Instance.new("UIStroke")
+            fpsStroke.Color = Color3.fromRGB(0, 255, 100)
+            fpsStroke.Thickness = 1
+            fpsStroke.Transparency = 0.5
+            fpsStroke.Parent = fpsLabel
+
+            task.spawn(function()
+                local lastUpdate = tick()
+                local frameCount = 0
+                while screenGui:FindFirstChild("FPSCounterLabel") do
+                    frameCount = frameCount + 1
+                    local now = tick()
+                    if now - lastUpdate >= 1 then
+                        local currentFPS = math.floor(frameCount / (now - lastUpdate))
+                        fpsLabel.Text = "FPS: " .. tostring(currentFPS)
+                        frameCount = 0
+                        lastUpdate = now
+                    end
+                    RunService.RenderStepped:Wait()
+                end
+            end)
+        end
+    else
+        if screenGui:FindFirstChild("FPSCounterLabel") then
+            screenGui.FPSCounterLabel:Destroy()
+        end
+    end
+end)
