@@ -1,0 +1,198 @@
+-- Dùng Fluent UI Library cho Roblox Script
+-- Đặt LocalScript này trong StarterPlayerScripts hoặc StarterGui
+
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/Fluent.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/InterfaceManager.lua"))()
+
+local Window = Fluent:Window({
+    Title = "KhanhHub PvP",
+    SubTitle = "Script này làm chơi th nên rất lỏ",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Chính", Icon = "home" }),
+    Visuals = Window:AddTab({ Title = "ESP", Icon = "eye" }),
+    Settings = Window:AddTab({ Title = "Cài đặt", Icon = "settings" })
+}
+
+local Options = Fluent.Options
+
+-- Biến chức năng
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local aimEnabled = false
+local espEnabled = false
+local selectedPlayerName = ""
+
+-- ==================== TAB CHÍNH: AIM & TELEPORT ====================
+
+-- 1. Aimbot (Tự động khóa tâm vào đầu người chơi gần nhất)
+Tabs.Main:AddToggle("AimToggle", {
+    Title = "Aim",
+    Default = false,
+    Callback = function(Value)
+        aimEnabled = Value
+    end
+})
+
+RunService.RenderStepped:Connect(function()
+    if aimEnabled then
+        local camera = workspace.CurrentCamera
+        local closestPlayer = nil
+        local shortestDistance = math.huge
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+                local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    local head = player.Character.Head
+                    local screenPoint, onScreen = camera:WorldToViewportPoint(head.Position)
+                    if onScreen then
+                        local mousePos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+                        local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            closestPlayer = player
+                        end
+                    end
+                end
+            end
+        end
+
+        if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("Head") then
+            camera.CFrame = CFrame.new(camera.CFrame.Position, closestPlayer.Character.Head.Position)
+        end
+    end
+end)
+
+-- 2. Bảng chọn tên người chơi (Dropdown) & Nút Teleport Tween
+local playerDropdown = Tabs.Main:AddDropdown("PlayerDropdown", {
+    Title = "Chọn người chơi",
+    Values = {},
+    Default = "",
+    Callback = function(Value)
+        selectedPlayerName = Value
+    end
+})
+
+local function updatePlayerList()
+    local list = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            table.insert(list, player.Name)
+        end
+    end
+    playerDropdown:SetValues(list)
+end
+
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+updatePlayerList()
+
+Tabs.Main:AddButton({
+    Title = "Bay đến người chơi (Tween)",
+    Description = "Tốc độ bay: 250",
+    Callback = function()
+        if selectedPlayerName == "" then return end
+        local targetPlayer = Players:FindFirstChild(selectedPlayerName)
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local targetHRP = targetPlayer.Character.HumanoidRootPart
+                local distance = (hrp.Position - targetHRP.Position).Magnitude
+                local speed = 250
+                local timeTaken = distance / speed
+
+                local tweenInfo = TweenInfo.new(timeTaken, Enum.EasingStyle.Linear)
+                local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetHRP.CFrame})
+                tween:Play()
+            end
+        end
+    end
+})
+
+-- ==================== TAB VISUALS: ESP ====================
+
+Tabs.Visuals:AddToggle("ESPToggle", {
+    Title = "Esp",
+    Default = false,
+    Callback = function(Value)
+        espEnabled = Value
+    end
+})
+
+local espHighlights = {}
+
+RunService.RenderStepped:Connect(function()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if espEnabled then
+                if player.Character and not espHighlights[player] then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Adornee = player.Character
+                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.Parent = player.Character
+                    espHighlights[player] = highlight
+                end
+            else
+                if espHighlights[player] then
+                    espHighlights[player]:Destroy()
+                    espHighlights[player] = nil
+                end
+            end
+        end
+    end
+end)
+
+-- ==================== CÀI ĐẶT GIAO DIỆN & NÚT BẬT TẮT ====================
+
+InterfaceManager:SetLibrary(Fluent)
+SaveManager:SetLibrary(Fluent)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+Window:SelectTab(1)
+Fluent:Notify({
+    Title = "Thông báo",
+    Content = "Script đã load thành công!",
+    Duration = 5
+})
+
+-- Tạo nút bật tắt menu dạng ImageButton có ảnh (logo) theo UID: 1000014847
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FluentToggleGui"
+screenGui.Parent = game.CoreGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local toggleButton = Instance.new("ImageButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Parent = screenGui
+toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleButton.BorderSizePixel = 0
+toggleButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+toggleButton.Size = UDim2.new(0, 50, 0, 50)
+toggleButton.Image = "rbxassetid://1000014847"
+toggleButton.Draggable = true
+toggleButton.Active = true
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(1, 0)
+uiCorner.Parent = toggleButton
+
+local menuVisible = true
+toggleButton.MouseButton1Click:Connect(function()
+    menuVisible = not menuVisible
+    Window.Enabled = menuVisible
+end)
