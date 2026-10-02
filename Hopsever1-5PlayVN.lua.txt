@@ -1,0 +1,289 @@
+-- KhanhHub - Universal Client Support
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- Global Variables
+local TargetName = ""
+local AimTargetEnabled = false
+local ExactHopPlayers = 5
+
+-- Universal GUI Protection Function (Hỗ trợ tất cả Client)
+local function GetSafeParent()
+	local success, result = pcall(function()
+		if gethui then
+			return gethui()
+		elseif syn and syn.protect_gui then
+			local sg = Instance.new("ScreenGui")
+			syn.protect_gui(sg)
+			return sg.Parent
+		elseif CoreGui then
+			return CoreGui
+		else
+			return LocalPlayer:WaitForChild("PlayerGui")
+		end
+	end)
+	
+	if success and result then
+		return result
+	else
+		return LocalPlayer:WaitForChild("PlayerGui")
+	end
+end
+
+local ParentGui = GetSafeParent()
+
+-- Xóa GUI cũ nếu đã chạy
+if ParentGui:FindFirstChild("KhanhHubGUI") then
+	ParentGui.KhanhHubGUI:Destroy()
+end
+if LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("KhanhHubGUI") then
+	LocalPlayer.PlayerGui.KhanhHubGUI:Destroy()
+end
+
+-- ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "KhanhHubGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = ParentGui
+
+-- Nút Bật/Tắt Menu chữ "K" Vuốt Kéo Được
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Name = "OpenButton"
+OpenBtn.Size = UDim2.new(0, 50, 0, 50)
+OpenBtn.Position = UDim2.new(0, 20, 0.4, 0)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+OpenBtn.Text = "K"
+OpenBtn.TextColor3 = Color3.fromRGB(0, 170, 255)
+OpenBtn.TextSize = 24
+OpenBtn.Font = Enum.Font.GothamBold
+OpenBtn.Active = true
+OpenBtn.Parent = ScreenGui
+
+local OpenBtnCorner = Instance.new("UICorner")
+OpenBtnCorner.CornerRadius = UDim.new(0, 14)
+OpenBtnCorner.Parent = OpenBtn
+
+local OpenBtnStroke = Instance.new("UIStroke")
+OpenBtnStroke.Color = Color3.fromRGB(0, 170, 255)
+OpenBtnStroke.Thickness = 2
+OpenBtnStroke.Parent = OpenBtn
+
+-- Logic Kéo Vuốt (Drag) đa nền tảng
+local dragging, dragInput, dragStart, startPos
+local function updateInput(input)
+	local delta = input.Position - dragStart
+	OpenBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+OpenBtn.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = OpenBtn.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+OpenBtn.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		if dragging then
+			updateInput(input)
+		end
+	end
+end)
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 310, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -155, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(60, 60, 80)
+MainStroke.Thickness = 1.5
+MainStroke.Parent = MainFrame
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.BackgroundTransparency = 1
+Title.Text = "KhanhHub-[ Hop sever 1-5 người]"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 13
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MainFrame
+
+-- Ô Nhập Tên Target
+local InputBox = Instance.new("TextBox")
+InputBox.Size = UDim2.new(0.88, 0, 0, 38)
+InputBox.Position = UDim2.new(0.06, 0, 0.16, 0)
+InputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+InputBox.PlaceholderText = "Nhập tên mục tiêu (Name/Display)..."
+InputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
+InputBox.Text = ""
+InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+InputBox.TextSize = 12
+InputBox.Font = Enum.Font.GothamMedium
+InputBox.Parent = MainFrame
+
+local InputCorner = Instance.new("UICorner")
+InputCorner.CornerRadius = UDim.new(0, 8)
+InputCorner.Parent = InputBox
+
+InputBox:GetPropertyChangedSignal("Text"):Connect(function()
+	TargetName = InputBox.Text
+end)
+
+-- Nút Aim người chơi có tên
+local AimBtn = Instance.new("TextButton")
+AimBtn.Name = "AimBtn"
+AimBtn.Size = UDim2.new(0.88, 0, 0, 40)
+AimBtn.Position = UDim2.new(0.06, 0, 0.32, 0)
+AimBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+AimBtn.Text = "🎯 Aim người chơi có tên: OFF"
+AimBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+AimBtn.TextSize = 12
+AimBtn.Font = Enum.Font.GothamBold
+AimBtn.Parent = MainFrame
+
+local AimCorner = Instance.new("UICorner")
+AimCorner.CornerRadius = UDim.new(0, 8)
+AimCorner.Parent = AimBtn
+
+AimBtn.MouseButton1Click:Connect(function()
+	AimTargetEnabled = not AimTargetEnabled
+	AimBtn.Text = "🎯 Aim người chơi có tên: " .. (AimTargetEnabled and "ON" or "OFF")
+	AimBtn.BackgroundColor3 = AimTargetEnabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(35, 35, 48)
+	AimBtn.TextColor3 = AimTargetEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 180)
+end)
+
+-- Ô Chỉnh Số Người Hop Chính Xác (1 đến 5)
+local HopCountBox = Instance.new("TextBox")
+HopCountBox.Size = UDim2.new(0.88, 0, 0, 38)
+HopCountBox.Position = UDim2.new(0.06, 0, 0.50, 0)
+HopCountBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+HopCountBox.PlaceholderText = "Nhập số người chính xác (1-5)..."
+HopCountBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
+HopCountBox.Text = "5"
+HopCountBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+HopCountBox.TextSize = 12
+HopCountBox.Font = Enum.Font.GothamMedium
+HopCountBox.Parent = MainFrame
+
+local HopCountCorner = Instance.new("UICorner")
+HopCountCorner.CornerRadius = UDim.new(0, 8)
+HopCountCorner.Parent = HopCountBox
+
+HopCountBox:GetPropertyChangedSignal("Text"):Connect(function()
+	local num = tonumber(HopCountBox.Text)
+	if num then
+		if num > 5 then
+			HopCountBox.Text = "5"
+			ExactHopPlayers = 5
+		elseif num < 1 then
+			HopCountBox.Text = "1"
+			ExactHopPlayers = 1
+		else
+			ExactHopPlayers = num
+		end
+	end
+end)
+
+-- Nút Hop Server
+local HopBtn = Instance.new("TextButton")
+HopBtn.Name = "HopBtn"
+HopBtn.Size = UDim2.new(0.88, 0, 0, 42)
+HopBtn.Position = UDim2.new(0.06, 0, 0.68, 0)
+HopBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+HopBtn.Text = "🌐 Hop"
+HopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+HopBtn.TextSize = 15
+HopBtn.Font = Enum.Font.GothamBold
+HopBtn.Parent = MainFrame
+
+local HopCorner = Instance.new("UICorner")
+HopCorner.CornerRadius = UDim.new(0, 8)
+HopCorner.Parent = HopBtn
+
+-- Mở / Đóng Menu
+local menuOpen = true
+OpenBtn.MouseButton1Click:Connect(function()
+	if not dragging then
+		menuOpen = not menuOpen
+		local targetSize = menuOpen and UDim2.new(0, 310, 0, 320) or UDim2.new(0, 0, 0, 0)
+		TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+			Size = targetSize
+		}):Play()
+	end
+end)
+
+-- Hàm Hop Server (Chính xác số người)
+local function HopServer()
+	local PlaceId = game.PlaceId
+	local JobId = game.JobId
+	
+	HopBtn.Text = "⏳ Đang tìm server " .. ExactHopPlayers .. " người..."
+	
+	local success, result = pcall(function()
+		return HttpService:JSONDecode(
+			game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
+		)
+	end)
+
+	if success and result and result.data then
+		for _, server in ipairs(result.data) do
+			if server.playing and server.playing == ExactHopPlayers and server.id ~= JobId then
+				TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
+				return
+			end
+		end
+	end
+	
+	HopBtn.Text = "❌ Không thấy SV " .. ExactHopPlayers .. " người!"
+	task.wait(2)
+	HopBtn.Text = "🌐 Hop"
+end
+
+HopBtn.MouseButton1Click:Connect(HopServer)
+
+-- Target Finder
+local function GetTargetPlayer()
+	if TargetName == "" or TargetName == " " then return nil end
+	local lowerInput = string.lower(TargetName)
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			if string.lower(player.Name) == lowerInput or string.lower(player.DisplayName) == lowerInput then
+				return player
+			end
+		end
+	end
+	return nil
+end
+
+-- Render Loop cho Aim
+RunService.RenderStepped:Connect(function()
+	local target = GetTargetPlayer()
+	
+	if AimTargetEnabled and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+		Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.HumanoidRootPart.Position)
+	end
+end)
