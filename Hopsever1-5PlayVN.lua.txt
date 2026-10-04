@@ -1,4 +1,4 @@
--- KhanhHub - Universal Client Support
+-- KhanhHub - Universal Client Support (Swipe Tabs & Draggable Toggle)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -11,11 +11,16 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- Global Variables
-local TargetName = ""
+local TargetPlayer = nil
 local AimTargetEnabled = false
-local ExactHopPlayers = 5
+local FlyBehindEnabled = false
+local HitboxEnabled = false
+local ExactHopPlayers = 1
 
--- Universal GUI Protection Function (Hỗ trợ tất cả Client)
+local FLY_SPEED = 150
+local DISTANCE_BEHIND = 3.5
+
+-- Universal GUI Protection Function
 local function GetSafeParent()
 	local success, result = pcall(function()
 		if gethui then
@@ -30,36 +35,27 @@ local function GetSafeParent()
 			return LocalPlayer:WaitForChild("PlayerGui")
 		end
 	end)
-	
-	if success and result then
-		return result
-	else
-		return LocalPlayer:WaitForChild("PlayerGui")
-	end
+	return (success and result) and result or LocalPlayer:WaitForChild("PlayerGui")
 end
 
 local ParentGui = GetSafeParent()
 
--- Xóa GUI cũ nếu đã chạy
-if ParentGui:FindFirstChild("KhanhHubGUI") then
-	ParentGui.KhanhHubGUI:Destroy()
-end
-if LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("KhanhHubGUI") then
-	LocalPlayer.PlayerGui.KhanhHubGUI:Destroy()
-end
+-- Cleanup old GUI
+if ParentGui:FindFirstChild("KhanhHubGUI") then ParentGui.KhanhHubGUI:Destroy() end
+if LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("KhanhHubGUI") then LocalPlayer.PlayerGui.KhanhHubGUI:Destroy() end
 
--- ScreenGui
+-- ScreenGui Main
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "KhanhHubGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = ParentGui
 
--- Nút Bật/Tắt Menu chữ "K" Vuốt Kéo Được
+-- NÚT "K" BẬT/TẮT MENU (Kéo vuốt di chuyển được)
 local OpenBtn = Instance.new("TextButton")
 OpenBtn.Name = "OpenButton"
-OpenBtn.Size = UDim2.new(0, 50, 0, 50)
+OpenBtn.Size = UDim2.new(0, 52, 0, 52)
 OpenBtn.Position = UDim2.new(0, 20, 0.4, 0)
-OpenBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
 OpenBtn.Text = "K"
 OpenBtn.TextColor3 = Color3.fromRGB(0, 170, 255)
 OpenBtn.TextSize = 24
@@ -76,214 +72,423 @@ OpenBtnStroke.Color = Color3.fromRGB(0, 170, 255)
 OpenBtnStroke.Thickness = 2
 OpenBtnStroke.Parent = OpenBtn
 
--- Logic Kéo Vuốt (Drag) đa nền tảng
-local dragging, dragInput, dragStart, startPos
-local function updateInput(input)
-	local delta = input.Position - dragStart
-	OpenBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
+-- Logic Kéo Vuốt Nút "K"
+local btnDragging = false
+local btnDragMoved = false
+local btnDragStart, btnStartPos
 
 OpenBtn.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = OpenBtn.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
+		btnDragging = true
+		btnDragMoved = false
+		btnDragStart = input.Position
+		btnStartPos = OpenBtn.Position
 	end
 end)
 
 OpenBtn.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-		if dragging then
-			updateInput(input)
+	if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and btnDragging then
+		local delta = input.Position - btnDragStart
+		if delta.Magnitude > 8 then
+			btnDragMoved = true
+			OpenBtn.Position = UDim2.new(btnStartPos.X.Scale, btnStartPos.X.Offset + delta.X, btnStartPos.Y.Scale, btnStartPos.Y.Offset + delta.Y)
 		end
+	end
+end)
+
+OpenBtn.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		btnDragging = false
 	end
 end)
 
 -- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 310, 0, 320)
-MainFrame.Position = UDim2.new(0.5, -155, 0.5, -160)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+MainFrame.Size = UDim2.new(0, 300, 0, 310)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -155)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
 MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
+local MainScale = Instance.new("UIScale")
+MainScale.Scale = 1
+MainScale.Parent = MainFrame
+
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.CornerRadius = UDim.new(0, 14)
 MainCorner.Parent = MainFrame
 
 local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Color3.fromRGB(60, 60, 80)
+MainStroke.Color = Color3.fromRGB(0, 170, 255)
 MainStroke.Thickness = 1.5
 MainStroke.Parent = MainFrame
 
--- Title
+-- Tiêu đề
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 45)
-Title.BackgroundTransparency = 1
-Title.Text = "KhanhHub-[ Hop sever 1-5 người]"
+Title.Size = UDim2.new(1, 0, 0, 38)
+Title.BackgroundColor3 = Color3.fromRGB(25, 25, 36)
+Title.Text = "Khanh2k17Hub Hop sv ít người"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 13
+Title.TextSize = 12
 Title.Font = Enum.Font.GothamBold
 Title.Parent = MainFrame
 
--- Ô Nhập Tên Target
-local InputBox = Instance.new("TextBox")
-InputBox.Size = UDim2.new(0.88, 0, 0, 38)
-InputBox.Position = UDim2.new(0.06, 0, 0.16, 0)
-InputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
-InputBox.PlaceholderText = "Nhập tên mục tiêu (Name/Display)..."
-InputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
-InputBox.Text = ""
-InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-InputBox.TextSize = 12
-InputBox.Font = Enum.Font.GothamMedium
-InputBox.Parent = MainFrame
+-- Chỉ báo Trang Tab (Dots)
+local PageIndicator = Instance.new("TextLabel")
+PageIndicator.Size = UDim2.new(1, 0, 0, 15)
+PageIndicator.Position = UDim2.new(0, 0, 1, -18)
+PageIndicator.BackgroundTransparency = 1
+PageIndicator.Text = "● ○  (Trang 1 / 2 - Vuốt sang)"
+PageIndicator.TextColor3 = Color3.fromRGB(120, 120, 150)
+PageIndicator.TextSize = 10
+PageIndicator.Font = Enum.Font.Gotham
+PageIndicator.Parent = MainFrame
 
-local InputCorner = Instance.new("UICorner")
-InputCorner.CornerRadius = UDim.new(0, 8)
-InputCorner.Parent = InputBox
+-- Khung Vuốt Ngang (Swipe Container)
+local TabContainer = Instance.new("Frame")
+TabContainer.Name = "TabContainer"
+TabContainer.Size = UDim2.new(2, 0, 1, -60)
+TabContainer.Position = UDim2.new(0, 0, 0, 40)
+TabContainer.BackgroundTransparency = 1
+TabContainer.Parent = MainFrame
 
-InputBox:GetPropertyChangedSignal("Text"):Connect(function()
-	TargetName = InputBox.Text
-end)
+-- --- TAB 1: CHỨC NĂNG ---
+local Tab1 = Instance.new("ScrollingFrame")
+Tab1.Name = "Tab1_Features"
+Tab1.Size = UDim2.new(0.5, -16, 1, 0)
+Tab1.Position = UDim2.new(0, 8, 0, 0)
+Tab1.BackgroundTransparency = 1
+Tab1.CanvasSize = UDim2.new(0, 0, 0, 220)
+Tab1.ScrollBarThickness = 3
+Tab1.ScrollBarImageColor3 = Color3.fromRGB(0, 170, 255)
+Tab1.Parent = TabContainer
 
--- Nút Aim người chơi có tên
-local AimBtn = Instance.new("TextButton")
-AimBtn.Name = "AimBtn"
-AimBtn.Size = UDim2.new(0.88, 0, 0, 40)
-AimBtn.Position = UDim2.new(0.06, 0, 0.32, 0)
-AimBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
-AimBtn.Text = "🎯 Aim người chơi có tên: OFF"
-AimBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
-AimBtn.TextSize = 12
-AimBtn.Font = Enum.Font.GothamBold
-AimBtn.Parent = MainFrame
+local UIList1 = Instance.new("UIListLayout")
+UIList1.Parent = Tab1
+UIList1.SortOrder = Enum.SortOrder.LayoutOrder
+UIList1.Padding = UDim.new(0, 8)
 
-local AimCorner = Instance.new("UICorner")
-AimCorner.CornerRadius = UDim.new(0, 8)
-AimCorner.Parent = AimBtn
+-- --- TAB 2: HOP SERVER ---
+local Tab2 = Instance.new("ScrollingFrame")
+Tab2.Name = "Tab2_HopServer"
+Tab2.Size = UDim2.new(0.5, -16, 1, 0)
+Tab2.Position = UDim2.new(0.5, 8, 0, 0)
+Tab2.BackgroundTransparency = 1
+Tab2.CanvasSize = UDim2.new(0, 0, 0, 180)
+Tab2.ScrollBarThickness = 3
+Tab2.ScrollBarImageColor3 = Color3.fromRGB(0, 170, 255)
+Tab2.Parent = TabContainer
 
-AimBtn.MouseButton1Click:Connect(function()
-	AimTargetEnabled = not AimTargetEnabled
-	AimBtn.Text = "🎯 Aim người chơi có tên: " .. (AimTargetEnabled and "ON" or "OFF")
-	AimBtn.BackgroundColor3 = AimTargetEnabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(35, 35, 48)
-	AimBtn.TextColor3 = AimTargetEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 180)
-end)
+local UIList2 = Instance.new("UIListLayout")
+UIList2.Parent = Tab2
+UIList2.SortOrder = Enum.SortOrder.LayoutOrder
+UIList2.Padding = UDim.new(0, 8)
 
--- Ô Chỉnh Số Người Hop Chính Xác (1 đến 5)
-local HopCountBox = Instance.new("TextBox")
-HopCountBox.Size = UDim2.new(0.88, 0, 0, 38)
-HopCountBox.Position = UDim2.new(0.06, 0, 0.50, 0)
-HopCountBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
-HopCountBox.PlaceholderText = "Nhập số người chính xác (1-5)..."
-HopCountBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
-HopCountBox.Text = "5"
-HopCountBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-HopCountBox.TextSize = 12
-HopCountBox.Font = Enum.Font.GothamMedium
-HopCountBox.Parent = MainFrame
+local function CreateButton(text, parent, order)
+	local Btn = Instance.new("TextButton")
+	Btn.Size = UDim2.new(1, -4, 0, 36)
+	Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+	Btn.Text = text
+	Btn.TextColor3 = Color3.fromRGB(190, 190, 190)
+	Btn.TextSize = 11
+	Btn.Font = Enum.Font.GothamBold
+	Btn.LayoutOrder = order
+	Btn.Parent = parent
+	
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 8)
+	Corner.Parent = Btn
+	
+	return Btn
+end
 
-local HopCountCorner = Instance.new("UICorner")
-HopCountCorner.CornerRadius = UDim.new(0, 8)
-HopCountCorner.Parent = HopCountBox
+-- --- NỘI DUNG TAB 1 ---
+-- 1. Chọn Mục Tiêu
+local DropdownBtn = CreateButton("👤 Chọn Mục Tiêu: [Chưa chọn]", Tab1, 1)
+local DropdownFrame = Instance.new("Frame")
+DropdownFrame.Size = UDim2.new(1, -4, 0, 90)
+DropdownFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+DropdownFrame.Visible = false
+DropdownFrame.LayoutOrder = 2
+DropdownFrame.Parent = Tab1
 
-HopCountBox:GetPropertyChangedSignal("Text"):Connect(function()
-	local num = tonumber(HopCountBox.Text)
-	if num then
-		if num > 5 then
-			HopCountBox.Text = "5"
-			ExactHopPlayers = 5
-		elseif num < 1 then
-			HopCountBox.Text = "1"
-			ExactHopPlayers = 1
-		else
-			ExactHopPlayers = num
+local DropdownCorner = Instance.new("UICorner")
+DropdownCorner.CornerRadius = UDim.new(0, 8)
+DropdownCorner.Parent = DropdownFrame
+
+local DropdownScroll = Instance.new("ScrollingFrame")
+DropdownScroll.Size = UDim2.new(1, 0, 1, 0)
+DropdownScroll.BackgroundTransparency = 1
+DropdownScroll.ScrollBarThickness = 3
+DropdownScroll.Parent = DropdownFrame
+
+local DropdownList = Instance.new("UIListLayout")
+DropdownList.Parent = DropdownScroll
+
+local function UpdatePlayerList()
+	for _, child in pairs(DropdownScroll:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+	
+	local count = 0
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer then
+			count = count + 1
+			local Btn = Instance.new("TextButton")
+			Btn.Size = UDim2.new(1, 0, 0, 25)
+			Btn.BackgroundColor3 = Color3.fromRGB(32, 32, 44)
+			Btn.Text = plr.DisplayName .. " (@" .. plr.Name .. ")"
+			Btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+			Btn.TextSize = 10
+			Btn.Font = Enum.Font.Gotham
+			Btn.Parent = DropdownScroll
+			
+			Btn.MouseButton1Click:Connect(function()
+				TargetPlayer = plr
+				DropdownBtn.Text = "👤 Mục Tiêu: " .. plr.DisplayName
+				DropdownFrame.Visible = false
+			end)
 		end
 	end
+	DropdownScroll.CanvasSize = UDim2.new(0, 0, 0, count * 25)
+end
+
+DropdownBtn.MouseButton1Click:Connect(function()
+	DropdownFrame.Visible = not DropdownFrame.Visible
+	if DropdownFrame.Visible then UpdatePlayerList() end
 end)
 
--- Nút Hop Server
-local HopBtn = Instance.new("TextButton")
-HopBtn.Name = "HopBtn"
-HopBtn.Size = UDim2.new(0.88, 0, 0, 42)
-HopBtn.Position = UDim2.new(0.06, 0, 0.68, 0)
-HopBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-HopBtn.Text = "🌐 Hop"
-HopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-HopBtn.TextSize = 15
-HopBtn.Font = Enum.Font.GothamBold
-HopBtn.Parent = MainFrame
-
-local HopCorner = Instance.new("UICorner")
-HopCorner.CornerRadius = UDim.new(0, 8)
-HopCorner.Parent = HopBtn
-
--- Mở / Đóng Menu
-local menuOpen = true
-OpenBtn.MouseButton1Click:Connect(function()
-	if not dragging then
-		menuOpen = not menuOpen
-		local targetSize = menuOpen and UDim2.new(0, 310, 0, 320) or UDim2.new(0, 0, 0, 0)
-		TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-			Size = targetSize
-		}):Play()
+Players.PlayerAdded:Connect(UpdatePlayerList)
+Players.PlayerRemoving:Connect(function(plr)
+	if TargetPlayer == plr then
+		TargetPlayer = nil
+		DropdownBtn.Text = "👤 Chọn Mục Tiêu: [Chưa chọn]"
 	end
+	UpdatePlayerList()
 end)
 
--- Hàm Hop Server (Chính xác số người)
+-- 2. Fly Sau Lưng
+local FlyBtn = CreateButton("Fly ra sau lưng: OFF", Tab1, 3)
+FlyBtn.MouseButton1Click:Connect(function()
+	FlyBehindEnabled = not FlyBehindEnabled
+	FlyBtn.Text = "Fly ra sau lưng: " .. (FlyBehindEnabled and "ON" or "OFF")
+	FlyBtn.BackgroundColor3 = FlyBehindEnabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(28, 28, 40)
+	FlyBtn.TextColor3 = FlyBehindEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(190, 190, 190)
+end)
+
+-- 3. Hitbox 10M
+local HitboxBtn = CreateButton("Hitbox: OFF", Tab1, 4)
+HitboxBtn.MouseButton1Click:Connect(function()
+	HitboxEnabled = not HitboxEnabled
+	HitboxBtn.Text = "Hitbox: " .. (HitboxEnabled and "ON" or "OFF")
+	HitboxBtn.BackgroundColor3 = HitboxEnabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(28, 28, 40)
+	HitboxBtn.TextColor3 = HitboxEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(190, 190, 190)
+end)
+
+-- 4. Aim Camera
+local AimBtn = CreateButton("Aim mục tiêu: OFF", Tab1, 5)
+AimBtn.MouseButton1Click:Connect(function()
+	AimTargetEnabled = not AimTargetEnabled
+	AimBtn.Text = " Aim mục tiêu: " .. (AimTargetEnabled and "ON" or "OFF")
+	AimBtn.BackgroundColor3 = AimTargetEnabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(28, 28, 40)
+	AimBtn.TextColor3 = AimTargetEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(190, 190, 190)
+end)
+
+-- --- NỘI DUNG TAB 2 ---
+local HopLabel = Instance.new("TextLabel")
+HopLabel.Size = UDim2.new(1, -4, 0, 20)
+HopLabel.BackgroundTransparency = 1
+HopLabel.Text = "🌐 TÙY CHỌN HOP SERVER"
+HopLabel.TextColor3 = Color3.fromRGB(0, 170, 255)
+HopLabel.TextSize = 11
+HopLabel.Font = Enum.Font.GothamBold
+HopLabel.LayoutOrder = 1
+HopLabel.Parent = Tab2
+
+local HopBox = Instance.new("TextBox")
+HopBox.Size = UDim2.new(1, -4, 0, 36)
+HopBox.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+HopBox.PlaceholderText = "Nhập số người trong SV (1, 2, 3...)"
+HopBox.Text = "1"
+HopBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+HopBox.TextSize = 11
+HopBox.Font = Enum.Font.GothamMedium
+HopBox.LayoutOrder = 2
+HopBox.Parent = Tab2
+
+local HopBoxCorner = Instance.new("UICorner")
+HopBoxCorner.CornerRadius = UDim.new(0, 8)
+HopBoxCorner.Parent = HopBox
+
+HopBox:GetPropertyChangedSignal("Text"):Connect(function()
+	local num = tonumber(HopBox.Text)
+	if num then ExactHopPlayers = math.max(1, math.floor(num)) end
+end)
+
+local HopBtn = CreateButton("🌐 Tìm & Chuyển Server", Tab2, 3)
+HopBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+HopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
 local function HopServer()
 	local PlaceId = game.PlaceId
 	local JobId = game.JobId
+	HopBtn.Text = "⏳ Đang quét SV " .. ExactHopPlayers .. " người..."
 	
-	HopBtn.Text = "⏳ Đang tìm server " .. ExactHopPlayers .. " người..."
+	local cursor = ""
+	local foundServer = nil
 	
-	local success, result = pcall(function()
-		return HttpService:JSONDecode(
-			game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
-		)
-	end)
-
-	if success and result and result.data then
-		for _, server in ipairs(result.data) do
-			if server.playing and server.playing == ExactHopPlayers and server.id ~= JobId then
-				TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
-				return
+	for i = 1, 5 do
+		local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+		if cursor ~= "" then url = url .. "&cursor=" .. cursor end
+		
+		local success, result = pcall(function()
+			return HttpService:JSONDecode(game:HttpGet(url))
+		end)
+		
+		if success and result and result.data then
+			for _, server in ipairs(result.data) do
+				if server.playing and server.playing == ExactHopPlayers and server.id ~= JobId then
+					foundServer = server.id
+					break
+				end
 			end
+			if foundServer or not result.nextPageCursor then break end
+			cursor = result.nextPageCursor
+		else
+			break
 		end
 	end
 	
-	HopBtn.Text = "❌ Không thấy SV " .. ExactHopPlayers .. " người!"
-	task.wait(2)
-	HopBtn.Text = "🌐 Hop"
+	if foundServer then
+		HopBtn.Text = "🚀 Đang chuyển server..."
+		TeleportService:TeleportToPlaceInstance(PlaceId, foundServer, LocalPlayer)
+	else
+		HopBtn.Text = "❌ Không thấy SV " .. ExactHopPlayers .. " người!"
+		task.wait(2)
+		HopBtn.Text = "🌐 Tìm & Chuyển Server"
+	end
 end
-
 HopBtn.MouseButton1Click:Connect(HopServer)
 
--- Target Finder
-local function GetTargetPlayer()
-	if TargetName == "" or TargetName == " " then return nil end
-	local lowerInput = string.lower(TargetName)
-	for _, player in pairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer then
-			if string.lower(player.Name) == lowerInput or string.lower(player.DisplayName) == lowerInput then
-				return player
+-- --- LOGIC VUỐT TRÁI/PHẢI CHUYỂN TAB ---
+local currentTab = 1
+local touchStartPos = nil
+local swipeDragging = false
+
+MainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		touchStartPos = input.Position
+		swipeDragging = true
+	end
+end)
+
+MainFrame.InputEnded:Connect(function(input)
+	if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and swipeDragging and touchStartPos then
+		swipeDragging = false
+		local deltaX = input.Position.X - touchStartPos.X
+		local deltaY = input.Position.Y - touchStartPos.Y
+		
+		-- Chỉ nhận vuốt ngang nếu khoảng cách vuốt > 40px và nghiêng hơn chiều dọc
+		if math.abs(deltaX) > 40 and math.abs(deltaX) > math.abs(deltaY) then
+			local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+			if deltaX < 0 and currentTab == 1 then
+				-- Vuốt sang Trái -> Sang Tab 2
+				currentTab = 2
+				TweenService:Create(TabContainer, tweenInfo, {Position = UDim2.new(-1, 0, 0, 40)}):Play()
+				PageIndicator.Text = "○ ●  (Trang 2 / 2 - Vuốt về)"
+			elseif deltaX > 0 and currentTab == 2 then
+				-- Vuốt sang Phải -> Về Tab 1
+				currentTab = 1
+				TweenService:Create(TabContainer, tweenInfo, {Position = UDim2.new(0, 0, 0, 40)}):Play()
+				PageIndicator.Text = "● ○  (Trang 1 / 2 - Vuốt sang)"
 			end
 		end
 	end
-	return nil
-end
+end)
 
--- Render Loop cho Aim
-RunService.RenderStepped:Connect(function()
-	local target = GetTargetPlayer()
+-- CLICK NÚT "K" ĐỂ MỞ/ĐÓNG MENU
+local menuOpen = true
+OpenBtn.MouseButton1Click:Connect(function()
+	if btnDragMoved then return end
 	
-	if AimTargetEnabled and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-		Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.HumanoidRootPart.Position)
+	menuOpen = not menuOpen
+	local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+	
+	if menuOpen then
+		MainFrame.Visible = true
+		TweenService:Create(MainScale, tweenInfo, {Scale = 1}):Play()
+	else
+		local tweenScale = TweenService:Create(MainScale, tweenInfo, {Scale = 0.1})
+		tweenScale:Play()
+		tweenScale.Completed:Connect(function()
+			if not menuOpen then MainFrame.Visible = false end
+		end)
+	end
+end)
+
+-- VÒNG LẶP XỬ LÝ CHÍNH
+RunService.RenderStepped:Connect(function(dt)
+	local myChar = LocalPlayer.Character
+	if not myChar then return end
+	local myHRP = myChar:FindFirstChild("HumanoidRootPart")
+	local myHum = myChar:FindFirstChildOfClass("Humanoid")
+	if not myHRP or not myHum or myHum.Health <= 0 then return end
+
+	-- Reset Hitbox nếu tắt hoặc chưa chọn target
+	if not HitboxEnabled or not TargetPlayer then
+		for _, plr in pairs(Players:GetPlayers()) do
+			if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+				local hrp = plr.Character.HumanoidRootPart
+				if hrp.Size ~= Vector3.new(2, 2, 1) then
+					hrp.Size = Vector3.new(2, 2, 1)
+					hrp.Transparency = 1
+				end
+			end
+		end
+	end
+
+	-- Kiểm tra Mục tiêu
+	if not TargetPlayer or not TargetPlayer.Character then return end
+	local targetChar = TargetPlayer.Character
+	local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
+	local targetHum = targetChar:FindFirstChildOfClass("Humanoid")
+	
+	if not targetHRP or not targetHum or targetHum.Health <= 0 then return end
+	
+	-- 1. FLY SAU LƯNG (3.5 studs)
+	if FlyBehindEnabled then
+		for _, part in pairs(myChar:GetChildren()) do
+			if part:IsA("BasePart") then part.CanCollide = false end
+		end
+		
+		local targetCFrame = targetHRP.CFrame
+		local behindPosition = targetCFrame.Position - (targetCFrame.LookVector * DISTANCE_BEHIND)
+		
+		local currentPos = myHRP.Position
+		local direction = (behindPosition - currentPos)
+		local distance = direction.Magnitude
+		
+		if distance > 0.7 then
+			local moveStep = math.min(distance, FLY_SPEED * dt)
+			myHRP.CFrame = CFrame.new(currentPos + direction.Unit * moveStep, targetHRP.Position)
+		else
+			myHRP.CFrame = CFrame.new(behindPosition, targetHRP.Position)
+		end
+		myHRP.AssemblyLinearVelocity = Vector3.zero
+	end
+	
+	-- 2. HITBOX 10M
+	if HitboxEnabled then
+		targetHRP.Size = Vector3.new(10, 10, 10)
+		targetHRP.Transparency = 0.6
+		targetHRP.BrickColor = BrickColor.new("Really red")
+		targetHRP.Material = Enum.Material.Neon
+		targetHRP.CanCollide = false
+	end
+	
+	-- 3. AIM CAMERA
+	if AimTargetEnabled then
+		Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHRP.Position)
 	end
 end)
